@@ -6,27 +6,27 @@ api server
 ## 所需包
 ```
 import (
-	"context"
+    "crypto/ed25519"
 	"crypto/rand"
-	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/oasisprotocol/oasis-core/go/common/crypto/signature"
-	"github.com/oasisprotocol/oasis-core/go/staking/api"
-	oasisGrpc "github.com/oasisprotocol/oasis-core/go/common/grpc"
-	consensus "github.com/oasisprotocol/oasis-core/go/consensus/api"
-	"github.com/oasisprotocol/oasis-core/go/consensus/api/transaction"
-	//"github.com/oasisprotocol/ed25519"
 	memorySigner "github.com/oasisprotocol/oasis-core/go/common/crypto/signature/signers/memory"
+	"github.com/oasisprotocol/oasis-core/go/common/quantity"
+	"github.com/oasisprotocol/oasis-core/go/consensus/api/transaction"
+	"github.com/oasisprotocol/oasis-core/go/staking/api"
 	staking "github.com/oasisprotocol/oasis-core/go/staking/api"
-	"google.golang.org/grpc"
-	"log"
-	"testing"
+	"net/http"
+	"strconv"
+	"time"
+	rose_resp "walletapiserver_go/walletsdk/rose_client/models/response"
 )
 ```
 ## 生成地址
 ```
-
+    //公私钥对生成
 pu,pr,_:=ed25519.GenerateKey(rand.Reader)
 
 	log.Println(hex.EncodeToString(pu))
@@ -46,9 +46,20 @@ pu,pr,_:=ed25519.GenerateKey(rand.Reader)
 
     //构建交易
 	testTx := transaction.NewTransaction(nonce, nil, staking.MethodTransfer, &staking.Transfer{})
-	testSigner:= memorySigner.NewFromRuntime(pr)
 
-    //签名
+    //地址类型转换string-->addres
+    var toAddress staking.Address
+	toAddress.UnmarshalText([]byte(stringAddress))
+    
+ 
+    //私钥转换
+	privaByte,err:=hex.DecodeString(req.PrivateKey)
+	if err!=nil {
+		return "", err
+	}
+	testSigner:= memorySigner.NewFromRuntime(privaByte)
+
+   //签名
 	testSigTx, _ := transaction.Sign(testSigner, testTx)
 	log.Println("交易hash:",testSigTx.Hash())
 	err:=cc.SubmitTxNoWait(context.Background(),testSigTx)
