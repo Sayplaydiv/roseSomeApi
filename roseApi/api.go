@@ -15,132 +15,133 @@ import (
 	conf "roseSomeApi/config"
 	"strconv"
 )
+
 const (
-	PATH="config/conf.ini"
+	PATH = "config/conf.ini"
 )
 
-func GetStatus(c *gin.Context)  {
+func GetStatus(c *gin.Context) {
+	//导入配置文件
+	configMap := conf.InitConfig(PATH)
+	//路径设置
+	socket_Path := configMap["socket_Path"]
+	conn, err := oasisGrpc.Dial(socket_Path, grpc.WithInsecure())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"data":     nil,
+			"errorMsg": fmt.Errorf("GetStatus oasisGrpc.Dial===", err),
+		})
+		return
+	}
+	cc := consensus.NewConsensusClient(conn)
+
+	status, err := cc.GetStatus(context.Background())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"data":     nil,
+			"errorMsg": fmt.Errorf("cc.GetStatus==", err),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":     status,
+		"errorMsg": "",
+	})
+	return
+}
+
+func GetSignerNonce(c *gin.Context) {
+	publicKey := c.Query("publicKey")
+	height := c.Query("height")
+	if publicKey != "" && height != "" {
 		//导入配置文件
 		configMap := conf.InitConfig(PATH)
 		//路径设置
-		socket_Path:=configMap["socket_Path"]
-		conn,err := oasisGrpc.Dial(socket_Path,grpc.WithInsecure())
-		if err!=nil {
+		socket_Path := configMap["socket_Path"]
+		conn, err := oasisGrpc.Dial(socket_Path, grpc.WithInsecure())
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":nil,
-				"errorMsg":fmt.Errorf("GetStatus oasisGrpc.Dial===",err) ,
+				"data":     0,
+				"errorMsg": fmt.Errorf("GetSignerNonce oasisGrpc.Dial===", err),
 			})
 			return
 		}
 		cc := consensus.NewConsensusClient(conn)
-
-		status,err:=cc.GetStatus(context.Background())
-		if err!=nil {
-			c.JSON(http.StatusOK, gin.H{
-				"data":nil,
-				"errorMsg":fmt.Errorf("cc.GetStatus==",err) ,
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"data":status,
-			"errorMsg":"" ,
-		})
-		return
-}
-
-func GetSignerNonce(c *gin.Context)  {
-	publicKey :=c.Query("publicKey")
-	height :=c.Query("height")
-	if publicKey!="" && height!="" {
-		//导入配置文件
-		configMap := conf.InitConfig("src/config/conf.ini")
-		//路径设置
-		socket_Path:=configMap["socket_Path"]
-		conn,err := oasisGrpc.Dial(socket_Path,grpc.WithInsecure())
-		if err!=nil {
-			c.JSON(http.StatusOK, gin.H{
-				"data":0,
-				"errorMsg":fmt.Errorf("GetSignerNonce oasisGrpc.Dial===",err) ,
-			})
-			return
-		}
-		cc := consensus.NewConsensusClient(conn)
-		signPublicKey:=signature.NewPublicKey(publicKey)
+		signPublicKey := signature.NewPublicKey(publicKey)
 		heightInt64, err := strconv.ParseInt(height, 10, 64)
-		if err!=nil {
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":0,
-				"errorMsg":fmt.Errorf("GetSignerNonce strconv.ParseInt===",err) ,
+				"data":     0,
+				"errorMsg": fmt.Errorf("GetSignerNonce strconv.ParseInt===", err),
 			})
 			return
 		}
-		nonceParam:=consensus.GetSignerNonceRequest{
+		nonceParam := consensus.GetSignerNonceRequest{
 			api.NewAddress(signPublicKey),
 			heightInt64,
 		}
-		nonce,err:=cc.GetSignerNonce(context.Background(),&nonceParam)
-		if err!=nil {
+		nonce, err := cc.GetSignerNonce(context.Background(), &nonceParam)
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":0,
-				"errorMsg":fmt.Errorf("cc.GetSignerNonce===",err) ,
+				"data":     0,
+				"errorMsg": fmt.Errorf("cc.GetSignerNonce===", err),
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"data":nonce,
-			"errorMsg":"" ,
+			"data":     nonce,
+			"errorMsg": "",
 		})
-		 return
-	}else {
+		return
+	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"data":0,
+			"data":     0,
 			"errorMsg": "参数类型错误或者缺失，请检查后再发送",
 		})
 	}
 }
-func SubmitTxNoWait(c *gin.Context)  {
-	txHex :=c.Query("txHex")
+func SubmitTxNoWait(c *gin.Context) {
+	txHex := c.Query("txHex")
 
-	if txHex!=""{
+	if txHex != "" {
 		//导入配置文件
-		configMap := conf.InitConfig("src/config/conf.ini")
+		configMap := conf.InitConfig(PATH)
 		//路径设置
-		socket_Path:=configMap["socket_Path"]
-		conn,err := oasisGrpc.Dial(socket_Path,grpc.WithInsecure())
-		if err!=nil {
+		socket_Path := configMap["socket_Path"]
+		conn, err := oasisGrpc.Dial(socket_Path, grpc.WithInsecure())
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":false,
-				"errorMsg":fmt.Errorf("SubmitTxNoWait oasisGrpc.Dial===",err) ,
+				"data":     false,
+				"errorMsg": fmt.Errorf("SubmitTxNoWait oasisGrpc.Dial===", err),
 			})
 			return
 		}
 		cc := consensus.NewConsensusClient(conn)
 		var txStr *transaction.SignedTransaction
-		err=json.Unmarshal([]byte(txHex),&txStr)
-		if err!=nil {
+		err = json.Unmarshal([]byte(txHex), &txStr)
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":false,
-				"errorMsg":fmt.Errorf("txHex to  txStruct===",err) ,
+				"data":     false,
+				"errorMsg": fmt.Errorf("txHex to  txStruct===", err),
 			})
 			return
 		}
-		err=cc.SubmitTxNoWait(context.Background(),txStr)
-		if err!=nil {
+		err = cc.SubmitTxNoWait(context.Background(), txStr)
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"data":false,
-				"errorMsg":fmt.Errorf("cc.GetSignerNonce===",err) ,
+				"data":     false,
+				"errorMsg": fmt.Errorf("cc.GetSignerNonce===", err),
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"data":true,
-			"errorMsg":"" ,
+			"data":     true,
+			"errorMsg": "",
 		})
 		return
-	}else {
+	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"data":false,
+			"data":     false,
 			"errorMsg": "参数类型错误或者缺失，请检查后再发送",
 		})
 	}
