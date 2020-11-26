@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/oasisprotocol/oasis-core/go/common/crypto/signature"
 	oasisGrpc "github.com/oasisprotocol/oasis-core/go/common/grpc"
 	consensus "github.com/oasisprotocol/oasis-core/go/consensus/api"
 	"github.com/oasisprotocol/oasis-core/go/consensus/api/transaction"
-	"github.com/oasisprotocol/oasis-core/go/staking/api"
+	staking "github.com/oasisprotocol/oasis-core/go/staking/api"
 	"google.golang.org/grpc"
 	"net/http"
 	conf "roseSomeApi/config"
@@ -51,9 +50,9 @@ func GetStatus(c *gin.Context) {
 }
 
 func GetSignerNonce(c *gin.Context) {
-	publicKey := c.Query("publicKey")
+	address := c.Query("address")
 	height := c.Query("height")
-	if publicKey != "" && height != "" {
+	if address != "" && height != "" {
 		//导入配置文件
 		configMap := conf.InitConfig(PATH)
 		//路径设置
@@ -67,7 +66,8 @@ func GetSignerNonce(c *gin.Context) {
 			return
 		}
 		cc := consensus.NewConsensusClient(conn)
-		signPublicKey := signature.NewPublicKey(publicKey)
+		var address_0 staking.Address
+		address_0.UnmarshalBinary([]byte(address))
 		heightInt64, err := strconv.ParseInt(height, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
@@ -77,7 +77,7 @@ func GetSignerNonce(c *gin.Context) {
 			return
 		}
 		nonceParam := consensus.GetSignerNonceRequest{
-			api.NewAddress(signPublicKey),
+			address_0,
 			heightInt64,
 		}
 		nonce, err := cc.GetSignerNonce(context.Background(), &nonceParam)
